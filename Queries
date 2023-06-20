@@ -1,0 +1,228 @@
+create table athlete_events(
+athlete_id integer,
+games varchar(50),
+year integer,
+season varchar(50),
+city varchar(50),
+sport varchar(50),
+event varchar,
+medal varchar(50)
+);
+--use in psql
+\COPY athlete_events FROM 'C:\Users\chandranshu\Desktop\tmp\athlete_events.csv' DELIMITER ',' CSV HEADER
+
+select *
+from athlete_events;
+
+create table athletes(
+id integer,
+name varchar,
+sex varchar,
+height integer,
+weight numeric,
+team varchar
+);
+
+--use in psql
+\COPY athletes FROM 'C:\Users\chandranshu\Desktop\tmp\athletes.csv' DELIMITER ',' CSV HEADER
+
+select *
+from athletes;
+
+--Q1 1 which team has won the maximum gold medals over the years.
+with medals_won as (
+select a.team,count(b.event) as medal
+from athletes as a
+join
+athlete_events as b
+on a.id=b.athlete_id
+where b.medal='Gold'
+group by a.team
+),max_medals as(
+select max(medal)
+from medals_won
+)
+select a.team,a.medal
+from medals_won as a
+join
+max_medals as b
+on a.medal=b.max;
+
+--2 for each team print total silver medals and year in which they won maximum silver medal..output 3 columns
+-- team,total_silver_medals, year_of_max_medals
+with medals_won as (
+select a.team,b.year,count(b.event) as medal
+from athletes as a
+join
+athlete_events as b
+on a.id=b.athlete_id
+where b.medal='Silver'
+group by a.team,b.year
+),max_medals as(
+select team,max(medal)
+from medals_won
+group by team
+)
+select a.team,sum(a.medal) as total_silver_medals ,a.year as year_of_max_medals
+from medals_won as a
+join
+max_medals as b
+on a.medal=b.max
+group by a.team,a.year;
+
+--3 which player has won maximum gold medals  amongst the players 
+--which have won only gold medal (never won silver or bronze) over the years
+
+with medals_won as (
+select a.name,count(b.event) as medal
+from athletes as a
+join
+athlete_events as b
+on a.id=b.athlete_id
+where b.medal='Gold'
+group by a.name
+),max_medals as(
+select max(medal)
+from medals_won
+)
+select a.name,a.medal
+from medals_won as a
+join
+max_medals as b
+on a.medal=b.max;
+
+--4 in each year which player has won maximum gold medal . Write a query to print year,player name 
+--and no of golds won in that year . In case of a tie print comma separated player names.
+with medals_won as (
+select a.name,b.year,count(distinct b.event) as medal
+from athletes as a
+join
+athlete_events as b
+on a.id=b.athlete_id
+where b.medal='Gold'
+group by a.name,b.year
+),max_medals as(
+select year,max(medal)
+from medals_won
+group by year
+)
+select STRING_AGG(a.name,',') as players,a.year
+from medals_won as a
+join
+max_medals as b
+on a.year=b.year and a.medal=b.max
+group by a.year,a.medal,a.name,b.max
+order by a.year;
+
+--5 in which event and year India has won its first gold medal,first silver medal and first bronze medal
+--print 3 columns medal,year,sport
+with 
+gold as (
+select a.year,a.event,a.medal,b.team
+from athlete_events as a
+join
+athletes as b
+on a.athlete_id=b.id
+where a.medal='Gold' and b.team='India'
+group by a.event,a.year,a.medal,b.team
+order by a.year
+),silver as (
+select a.year,a.event,a.medal,b.team
+from athlete_events as a
+join
+athletes as b
+on a.athlete_id=b.id
+where a.medal='Silver' and b.team='India'
+group by a.event,a.year,a.medal,b.team
+order by a.year
+),bronze as(
+select a.year,a.event,a.medal,b.team
+from athlete_events as a
+join
+athletes as b
+on a.athlete_id=b.id
+where a.medal='Bronze' and b.team='India'
+group by a.event,a.year,a.medal,b.team
+order by a.year
+),min_gold as(
+select min(year)
+from gold
+),min_silver as(
+select min(year)
+from silver
+),min_bronze as(
+select min(year)
+from bronze
+),min_silver_won as(
+select year,STRING_AGG(event,','),a.medal
+from silver as a
+join
+min_silver as b
+on a.year=b.min
+group by year,a.medal
+),min_gold_won as(
+select year,STRING_AGG(event,','),a.medal
+from gold as a
+join
+min_gold as b
+on a.year=b.min
+group by year,a.medal
+),min_bronze_won as(
+select year,STRING_AGG(event,','),a.medal
+from bronze as a
+join
+min_bronze as b
+on a.year=b.min
+group by year,a.medal
+)
+SELECT year, string_agg as event,medal
+FROM min_gold_won
+UNION ALL
+SELECT year, string_agg as event,medal
+FROM min_silver_won
+UNION ALL
+SELECT year, string_agg as event,medal
+FROM min_bronze_won;
+
+--6 find players who won gold medal in summer and winter olympics both.
+with summer as (
+select b.name,a.medal,a.season
+from athlete_events as a
+join
+athletes as b
+on a.athlete_id=b.id
+where a.medal='Gold' and a.season='Summer'
+group by b.name,a.season,a.medal
+), winter as (
+select b.name,a.medal,a.season
+from athlete_events as a
+join
+athletes as b
+on a.athlete_id=b.id
+where a.medal='Gold' and a.season='Winter'
+group by b.name,a.season,a.medal
+)
+select a.name
+from summer as a
+join
+winter as b
+on a.name=b.name;
+
+--Alter
+select b.name  
+from athlete_events a
+inner join 
+athletes b
+on a.athlete_id=b.id
+where medal='Gold'
+group by b.name 
+having count(distinct season)=2
+
+--7 find players who won gold, silver and bronze medal in a single olympics. print player name along with year.
+select year,name
+from athlete_events a
+inner join
+athletes b
+on a.athlete_id=b.id
+where medal != 'NA'
+group by year,name having count(distinct medal)=3
