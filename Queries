@@ -226,3 +226,17 @@ athletes b
 on a.athlete_id=b.id
 where medal != 'NA'
 group by year,name having count(distinct medal)=3
+
+--8 find players who have won gold medals in consecutive 3 summer olympics in the same event . Consider only olympics 2000 onwards. 
+--Assume summer olympics happens every 4 year starting 2000. print player name and event name.
+with gold as (
+select name,year,event
+from athlete_events ae
+inner join athletes a on ae.athlete_id=a.id
+where year >=2000 and season='Summer'and medal = 'Gold'
+group by name,year,event)
+select * from
+(select *, lag(year,1) over(partition by name,event order by year ) as prev_year
+, lead(year,1) over(partition by name,event order by year ) as next_year
+from gold) A
+where year=prev_year+4 and year=next_year-4
