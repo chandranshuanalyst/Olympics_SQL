@@ -15,3 +15,4 @@ To answer the questions, we need to have knowledge of :
 * CTE
 * STRING_AGG
 * UNION ALL
+* Window Functions
